@@ -49,7 +49,8 @@ class ProjectsServiceProvider extends ServiceProvider
     {
         $schedule = $this->app->make(Schedule::class);
 
-        // Safety net for missed GitHub webhooks.
-        $schedule->command('projects:reconcile-github')->hourly()->onOneServer();
+        // Safety net for missed GitHub webhooks. onOneServer() only picks which server runs a tick;
+        // withoutOverlapping() is what stops a run still calling GitHub from meeting the next one.
+        $schedule->command('projects:reconcile-github')->hourly()->onOneServer()->withoutOverlapping();
     }
 }

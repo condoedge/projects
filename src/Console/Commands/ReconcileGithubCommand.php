@@ -25,9 +25,13 @@ class ReconcileGithubCommand extends Command
             return self::SUCCESS;
         }
 
+        // The project comes eagerly and unscoped: one query instead of one per record, and the
+        // console has no team in context for the scoped relation to resolve against.
+        $withProject = ['project' => fn ($q) => $q->withoutGlobalScopes()];
+
         $linked = collect()
-            ->concat(FeatureRequest::withoutGlobalScopes()->whereNotNull('github_issue_number')->get())
-            ->concat(ProjectTask::withoutGlobalScopes()->whereNotNull('github_issue_number')->get());
+            ->concat(FeatureRequest::withoutGlobalScopes()->with($withProject)->whereNotNull('github_issue_number')->get())
+            ->concat(ProjectTask::withoutGlobalScopes()->with($withProject)->whereNotNull('github_issue_number')->get());
 
         foreach ($linked as $entity) {
             [$owner, $repo] = $entity->githubRepoTarget();
@@ -42,7 +46,9 @@ class ReconcileGithubCommand extends Command
                     ApplyGithubIssueEvent::dispatch(
                         (int) $entity->github_issue_number,
                         $state === 'closed' ? 'closed' : 'reopened',
-                        ['reconcile' => true]
+                        ['reconcile' => true],
+                        $issue['node_id'] ?? $entity->github_issue_node_id,
+                        "{$owner}/{$repo}"
                     );
                 }
             } catch (\Throwable $e) {

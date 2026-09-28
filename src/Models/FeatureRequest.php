@@ -66,11 +66,7 @@ class FeatureRequest extends Model implements ScopedToTeam
     public function toMarkdown(): string
     {
         $ref = $this->app_reference ?: [];
-        $criteria = collect($this->acceptance_criteria ?: [])
-            ->map(fn ($c) => '- '.(is_array($c)
-                ? trim(('**'.__('projects.given').'** '.($c['given'] ?? '')).' / **'.__('projects.when').'** '.($c['when'] ?? '').' / **'.__('projects.then').'** '.($c['then'] ?? ''))
-                : $c))
-            ->implode("\n");
+        $criteria = $this->criteriaAsMarkdown();
 
         return implode("\n", array_filter([
             '# '.$this->title,

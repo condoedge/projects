@@ -71,4 +71,20 @@ trait HasAcceptanceCriteria
 
         return $items->isEmpty() ? '' : $items->where('done', true)->count() . ' / ' . $items->count();
     }
+
+    /**
+     * A GitHub task list, one checkbox per criterion, ticked where done. Empty string when there
+     * is nothing to list.
+     *
+     * The exports read through criteriaItems() like everything else. Each used to parse the raw
+     * column itself, expecting the import's given/when/then triples, so every criterion written
+     * by this module ({text, done}) came out as an empty template — or, on a task, as an array
+     * concatenated to a string, which threw.
+     */
+    public function criteriaAsMarkdown(): string
+    {
+        return $this->criteriaItems()
+            ->map(fn ($criterion) => '- [' . ($criterion['done'] ? 'x' : ' ') . '] ' . $criterion['text'])
+            ->implode("\n");
+    }
 }

@@ -39,10 +39,9 @@ class ProjectTask extends Model implements ScopedToTeam
     public function githubBody(): string
     {
         $body = (string) $this->description;
-        $criteria = collect($this->acceptance_criteria ?: [])->filter();
-        if ($criteria->isNotEmpty()) {
-            $body .= "\n\n## ".__('projects.acceptance-criteria')."\n"
-                . $criteria->map(fn ($c) => '- '.$c)->implode("\n");
+        $criteria = $this->criteriaAsMarkdown();
+        if ($criteria !== '') {
+            $body .= "\n\n## ".__('projects.acceptance-criteria')."\n".$criteria;
         }
 
         return $body;

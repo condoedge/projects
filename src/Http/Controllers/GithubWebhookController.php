@@ -25,11 +25,13 @@ class GithubWebhookController extends Controller
         // 'issues' carries an action (opened/closed/reopened/edited/labeled); comments are 'commented'.
         $action = $event === 'issue_comment' ? 'commented' : ($payload['action'] ?? 'unknown');
 
+        // The number alone is ambiguous across repositories; the node id and the repository name
+        // are what tie the event to one record.
         ApplyGithubIssueEvent::dispatch((int) $issueNumber, $action, [
             'event' => $event,
             'title' => $payload['issue']['title'] ?? null,
             'state' => $payload['issue']['state'] ?? null,
-        ]);
+        ], $payload['issue']['node_id'] ?? null, $payload['repository']['full_name'] ?? null);
 
         return response()->json(['ok' => true]);
     }
