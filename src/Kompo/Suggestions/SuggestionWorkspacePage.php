@@ -118,8 +118,7 @@ class SuggestionWorkspacePage extends Form
             // not typed.
             _Rows(
                 $this->detailRow('projects.status', $suggestion->status
-                    ? _Pill($suggestion->status->label())
-                        ->class($suggestion->status->displayColor() . ' text-white')
+                    ? $this->pmTint(_Pill($suggestion->status->label()), $suggestion->status->displayColor())
                     : null),
                 $this->detailRow('projects.priority', $this->priorityStars($suggestion)),
                 $this->detailRow('projects.votes', $suggestion->votes),

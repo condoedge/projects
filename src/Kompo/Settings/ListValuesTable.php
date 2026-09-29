@@ -2,6 +2,7 @@
 
 namespace Condoedge\Projects\Kompo\Settings;
 
+use Condoedge\Projects\Kompo\Concerns\PmElements;
 use Condoedge\Projects\Models\ListValue;
 use Condoedge\Utils\Kompo\Common\WhiteTable;
 
@@ -11,6 +12,8 @@ use Condoedge\Utils\Kompo\Common\WhiteTable;
  */
 class ListValuesTable extends WhiteTable
 {
+    use PmElements;
+
     protected $listKey;
     protected $teamId;
 
@@ -42,9 +45,17 @@ class ListValuesTable extends WhiteTable
 
     public function top()
     {
+        $isOrdered = in_array($this->listKey, ListValue::ORDERED_LISTS, true);
+
         return _Rows(
-            _Button('projects.add-list-value')->icon('plus')
-                ->selfGet('getListValueForm')->inModal(),
+            _Flex(
+                _Button('projects.add-list-value')->icon('plus')
+                    ->selfGet('getListValueForm')->inModal(),
+                // Only where order means something — everywhere else, position has nothing to
+                // drive, so a drag handle would be an answer to a question nobody asked.
+                !$isOrdered ? null : _Button('projects.reorder-list')->icon('selector')->outlined()
+                    ->selfGet('getOrderForm')->inModal(),
+            )->class('gap-2'),
         )->class('mb-3');
     }
 
@@ -67,7 +78,7 @@ class ListValuesTable extends WhiteTable
             )->class('gap-2 items-center'),
 
             $listValue->displayColor()
-                ? _Pill($listValue->displayName())->class($listValue->displayColor() . ' text-white')
+                ? $this->pmTint(_Pill($listValue->displayName()), $listValue->displayColor())
                 : _Html('—'),
 
             _TripleDotsDropdown(
@@ -86,6 +97,14 @@ class ListValuesTable extends WhiteTable
     public function getListValueForm($id = null)
     {
         return new ListValueForm($id, [
+            'list_key' => $this->listKey,
+            'team_id' => $this->teamId,
+        ]);
+    }
+
+    public function getOrderForm()
+    {
+        return new ListValueOrderForm(null, [
             'list_key' => $this->listKey,
             'team_id' => $this->teamId,
         ]);

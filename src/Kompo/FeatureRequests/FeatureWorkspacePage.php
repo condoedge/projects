@@ -9,7 +9,6 @@ use Condoedge\Projects\Models\ListValue;
 use Condoedge\Projects\Kompo\Tasks\TasksTable;
 use Condoedge\Projects\Models\Enums\ComplexityEnum;
 use Condoedge\Projects\Models\Enums\ConfidenceEnum;
-use Condoedge\Projects\Models\Enums\FeatureRequestStatusEnum;
 use Condoedge\Projects\Models\Enums\FeatureRequestTypeEnum;
 use Condoedge\Projects\Models\Enums\PriorityEnum;
 use Condoedge\Projects\Models\FeatureRequest;
@@ -79,7 +78,7 @@ class FeatureWorkspacePage extends Form
                 $this->pmStepper(
                     $fr->status,
                     $fr->id,
-                    FeatureRequestStatusEnum::pipeline(),
+                    ListValue::pipeline(ListValue::FEATURE_REQUEST_STATUS, $fr->team_id)->all(),
                     self::ID
                 ),
                 // The pill is the control here too, so the stage changes the same way on the
@@ -101,7 +100,9 @@ class FeatureWorkspacePage extends Form
 
             $this->workspaceColumns(
                 [
-                    $this->documentationBlock($fr),
+                    $this->problemBlock($fr),
+                    $this->proposedSolutionBlock($fr),
+                    $this->menuDesignBlock($fr),
                     $this->criteriaBlock($fr),
                     $this->referenceBlock($fr),
                     $this->tasksBlock($fr),
@@ -120,26 +121,44 @@ class FeatureWorkspacePage extends Form
 
     // ── BLOCKS ──
 
-    protected function documentationBlock($fr)
+    /**
+     * Problem, proposed solution and menu/navigation notes each get their own card. They used
+     * to share one — crammed under a single "Problème" heading with the other two as small grey
+     * sub-labels inside it — which read as one field wearing three names. toMarkdown() already
+     * emits them as separate headed sections for the GitHub issue body; the screen now matches.
+     */
+    protected function problemBlock($fr)
     {
         return $this->infoBlock(
             'projects.problem',
+            // No label on the field itself: the card's own heading already says it, and
+            // _Textarea($label) would print that same sentence again right below it.
+            $this->editing
+                ? $this->auto(_Textarea()->name('problem')->rows(4))
+                : $this->readText($fr->problem),
+        );
+    }
+
+    protected function proposedSolutionBlock($fr)
+    {
+        return $this->infoBlock(
+            'projects.proposed-solution',
+            $this->editing
+                ? $this->auto(_Textarea()->name('proposed_solution')->rows(4))
+                : $this->readText($fr->proposed_solution),
+        );
+    }
+
+    protected function menuDesignBlock($fr)
+    {
+        return $this->infoBlock(
+            'projects.menu-design',
             $this->editing
                 ? _Rows(
-                    $this->auto(_Textarea('projects.problem')->name('problem')->rows(4)),
-                    $this->auto(_Textarea('projects.proposed-solution')->name('proposed_solution')->rows(4)),
-                    $this->auto(_Textarea('projects.menu-design')->name('menu_design')->rows(3)),
+                    $this->auto(_Textarea()->name('menu_design')->rows(3)),
                     _MultiFile('projects.attachments')->name('files'),
                 )
-                : _Rows(
-                    $this->readText($fr->problem),
-                    _Html('projects.proposed-solution')->class('text-sm text-gray-500 mt-3'),
-                    $this->readText($fr->proposed_solution),
-                    !$fr->menu_design ? null : _Rows(
-                        _Html('projects.menu-design')->class('text-sm text-gray-500 mt-3'),
-                        $this->readText($fr->menu_design),
-                    ),
-                ),
+                : $this->readText($fr->menu_design),
         );
     }
 
@@ -196,14 +215,21 @@ class FeatureWorkspacePage extends Form
                         ->options(ListValue::optionsForProject(ListValue::FEATURE_REQUEST_TYPE, $fr->project_id))),
                     $this->autoSel(_Select('projects.priority')->name('priority')
                         ->options(ListValue::optionsForProject(ListValue::PRIORITY, $fr->project_id))),
+                    $this->autoSel(_Select('projects.phase')->name('phase')
+                        ->options(ListValue::optionsForProject(ListValue::PHASE, $fr->project_id))
+                        ->placeholder('projects.no-phase')),
                 )
                 : _Rows(
-                    $this->detailRow('projects.type', $fr->type ? _Pill($fr->type->label())
-                        ->class(($fr->type->displayColor() ?: 'bg-gray-400') . ' text-white') : null),
-                    $this->detailRow('projects.status', $fr->status ? _Pill($fr->status->label())
-                        ->class($fr->status->displayColor() . ' text-white') : null),
-                    $this->detailRow('projects.priority', $fr->priority ? _Pill($fr->priority->label())
-                        ->class($fr->priority->displayColor() . ' text-white') : null),
+                    $this->detailRow('projects.type', $fr->type
+                        ? $this->pmTint(_Pill($fr->type->label()), $fr->type->displayColor(), 'bg-gray-400')
+                        : null),
+                    $this->detailRow('projects.status', $fr->status
+                        ? $this->pmTint(_Pill($fr->status->label()), $fr->status->displayColor())
+                        : null),
+                    $this->detailRow('projects.priority', $fr->priority
+                        ? $this->pmTint(_Pill($fr->priority->label()), $fr->priority->displayColor())
+                        : null),
+                    $this->detailRow('projects.phase', $this->pmPhase($fr->phase)),
                 ),
         );
     }

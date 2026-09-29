@@ -72,9 +72,14 @@ class FeatureRequestForm extends Modal
                 _Select('projects.status')->name('status')
                     ->options(ListValue::optionsForProject(ListValue::FEATURE_REQUEST_STATUS, $projectId))
                     ->default(FeatureRequestStatusEnum::DRAFT->value),
+            ),
+            _Columns(
                 _Select('projects.priority')->name('priority')
                     ->options(ListValue::optionsForProject(ListValue::PRIORITY, $projectId))
                     ->default(PriorityEnum::MEDIUM->value),
+                _Select('projects.phase')->name('phase')
+                    ->options(ListValue::optionsForProject(ListValue::PHASE, $projectId))
+                    ->placeholder('projects.no-phase'),
             ),
             _Input('projects.title')->name('title')->required()
                 ->onEnter(fn ($e) => $e->closeModal()->refresh(FeatureRequestsTable::ID)),

@@ -3,6 +3,7 @@
 namespace Condoedge\Projects\Kompo;
 
 use Condoedge\Projects\Kompo\Concerns\PmElements;
+use Condoedge\Projects\Kompo\Concerns\ReadOnlyWorkspace;
 use Condoedge\Projects\Models\FeatureRequest;
 use Condoedge\Projects\Models\ProjectTask;
 use Condoedge\Projects\Models\Suggestion;
@@ -27,6 +28,10 @@ use Condoedge\Utils\Kompo\Common\Form;
 class PmRecordDrawer extends Form
 {
     use PmElements;
+    // Only for criteriaChecklist(), which takes its model as a plain argument. toggleCriterion()
+    // is overridden below: the trait's own version reaches for $this->model, Kompo's single-model
+    // binding — this component holds one of three record types in $this->record instead.
+    use ReadOnlyWorkspace;
 
     public const ID = 'pm-record-drawer';
     public $id = self::ID;
@@ -58,12 +63,17 @@ class PmRecordDrawer extends Form
     public function render()
     {
         if (!$this->record) {
-            return _Html('projects.record-gone')->class('text-graydark w-[440px] max-w-[92vw] p-7');
+            return _Html('projects.record-gone')->class('text-graydark w-[25vw] min-w-[320px] p-7');
         }
 
         $r = $this->record;
 
-        return _Rows(
+        // Built as a plain array rather than inline spreads: textSections() returns a variable
+        // number of elements, and PHP refuses a positional argument (the button row) after any
+        // ...spread in the same call.
+        $children = [
+            $this->pmMarkdownStyles(),
+
             // pr-10 clears Kompo's own close button, which sits over the top-right corner.
             _Html($r->title)->class('text-lg font-bold text-level1 leading-snug pr-10'),
 
@@ -71,7 +81,9 @@ class PmRecordDrawer extends Form
 
             _Rows(...$this->details($r)),
 
-            $this->longText($this->mainText($r)),
+            ...$this->textSections($r),
+
+            $this->criteriaSection($r),
 
             // Where the drawer stops being enough.
             _Flex(
@@ -80,7 +92,11 @@ class PmRecordDrawer extends Form
                 _Link('projects.edit')->icon(_SaxSvg('edit', 16))->button()->outlined()
                     ->href($this->route(), ['id' => $r->id, 'edit' => 1]),
             )->class('gap-3 mt-8'),
-        )->class('w-[440px] max-w-[92vw] p-7');
+        ];
+
+        // A quarter of the screen, not a fixed pixel width — min-w keeps it readable on a
+        // narrow viewport, where 25vw alone would be too tight for the badges to stay on one row.
+        return _Rows(...$children)->class('w-[25vw] min-w-[320px] p-7 max-h-screen overflow-y-auto');
     }
 
     protected function route(): string
@@ -98,11 +114,13 @@ class PmRecordDrawer extends Form
             'task' => [
                 _Pill($r->status?->label())->class(($r->status?->color() ?: 'bg-graydark') . ' text-white'),
                 $this->pmPriority($r->priority),
+                $r->phase ? $this->pmPhase($r->phase) : null,
                 !$r->kind ? null : _Html($r->kind->label())->class('text-sm text-graydark'),
             ],
             default => [
                 _Pill($r->status?->label())->class(($r->status?->displayColor() ?: 'bg-graydark') . ' text-white'),
                 $this->pmPriority($r->priority),
+                $this->kind === 'feature' && $r->phase ? $this->pmPhase($r->phase) : null,
                 $this->kind !== 'feature' || !$r->type ? null
                     : _Html($r->type->label())->class('text-sm text-graydark'),
             ],
@@ -140,12 +158,15 @@ class PmRecordDrawer extends Form
                 $this->pmField('projects.due-date', $r->due_date?->translatedFormat('j M Y')),
                 (int) $r->completion_pct === 0 ? null
                     : $this->pmField('projects.completion', $r->completion_pct . ' %'),
+                $this->pmField('projects.criteria-short', $r->criteriaProgress() ?: null),
             ],
             default => [
                 (int) ($r->tasks_count ?? 0) === 0 ? null
                     : $this->pmRow(__('projects.tasks'), $this->pmProgressOf($r)),
                 !$r->effort_days ? null : $this->pmField('projects.effort-days', (string) $r->effort_days),
                 !$r->complexity ? null : $this->pmField('projects.complexity', $r->complexity->label()),
+                $this->kind !== 'feature' ? null
+                    : $this->pmField('projects.criteria-short', $r->criteriaProgress() ?: null),
             ],
         };
     }
@@ -231,27 +252,32 @@ class PmRecordDrawer extends Form
     }
 
 
-    protected function mainText($r): ?string
+    /**
+     * Every long-text field the record holds, each under its own heading — a feature's problem,
+     * proposed solution and menu notes used to arrive here as one untitled paragraph (whichever
+     * mainText() picked), so the other two were simply missing from the drawer. Matches the split
+     * FeatureWorkspacePage's own page draws them with.
+     */
+    protected function textSections($r): array
     {
-        return match ($this->kind) {
-            'suggestion' => $r->body,
-            'task' => $r->description,
-            default => $r->problem,
+        $fields = match ($this->kind) {
+            'suggestion' => [['projects.description', $r->body]],
+            'task' => [['projects.description', $r->description]],
+            default => [
+                ['projects.problem', $r->problem],
+                ['projects.proposed-solution', $r->proposed_solution],
+                ['projects.menu-design', $r->menu_design],
+            ],
         };
+
+        return array_values(array_filter(array_map(
+            fn ($f) => $this->textSection($f[0], $f[1]),
+            $fields
+        )));
     }
 
-    protected function linkField(string $label, string $text, string $route, $id)
-    {
-        return $this->pmRow(
-            __($label),
-            _Link($text)->class('text-sm text-level1 underline')->href($route, ['id' => $id])
-        );
-    }
-
-
-
-    /** Enough to recognise the record, not enough to replace reading it. */
-    protected function longText($text)
+    /** A heading, then its full text — no truncation: the drawer scrolls now instead. */
+    protected function textSection(string $label, ?string $text)
     {
         $text = trim((string) $text);
 
@@ -260,8 +286,37 @@ class PmRecordDrawer extends Form
         }
 
         return _Rows(
-            $this->pmMarkdownStyles(),
-            $this->pmMarkdown(\Illuminate\Support\Str::limit($text, 600)),
+            _Html(__($label))->class('text-xs font-semibold uppercase tracking-wide text-graydark mb-2'),
+            $this->pmMarkdown($text),
         )->class('mt-5 pt-4 border-t border-level5');
+    }
+
+    /** The checklist itself, not just its count — task and feature only, suggestions have none. */
+    protected function criteriaSection($r)
+    {
+        if (!in_array($this->kind, ['task', 'feature'], true) || $r->criteriaItems()->isEmpty()) {
+            return null;
+        }
+
+        return _Rows(
+            _Html(trim(__('projects.acceptance-criteria') . ' ' . $r->criteriaProgress()))
+                ->class('text-xs font-semibold uppercase tracking-wide text-graydark mb-2'),
+            $this->criteriaChecklist($r, self::ID),
+        )->class('mt-5 pt-4 border-t border-level5');
+    }
+
+    /** ReadOnlyWorkspace's own version reaches for $this->model; this component has no single
+     * bound model, so it re-targets $this->record — already resolved fresh by created(). */
+    public function toggleCriterion()
+    {
+        $this->record?->toggleCriterion((int) request('index'));
+    }
+
+    protected function linkField(string $label, string $text, string $route, $id)
+    {
+        return $this->pmRow(
+            __($label),
+            _Link($text)->class('text-sm text-level1 underline')->href($route, ['id' => $id])
+        );
     }
 }

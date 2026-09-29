@@ -18,6 +18,64 @@ use Condoedge\Projects\Models\ListValue;
 trait PmElements
 {
     /**
+     * A colour applied as a background, spelled either way: a Tailwind class (seeded from an
+     * enum, e.g. "bg-danger") or a hex value (freely chosen in the colour picker). Kept apart
+     * from pmTint() for the few spots — the priority bar — where the colour tints an element
+     * that carries no text of its own, so there is no contrast to solve.
+     */
+    protected function pmBg($element, ?string $color, string $fallback = 'bg-graydark')
+    {
+        $color = $color ?: $fallback;
+
+        return str_starts_with($color, '#')
+            ? $element->style('background-color: ' . $color)
+            : $element->class($color);
+    }
+
+    /**
+     * Same as pmBg(), plus a text colour chosen for contrast — for a pill where the colour IS
+     * the background. A Tailwind class from the fixed enum palette always reads white on top, as
+     * every pill here assumed before the colour picker existed; a freely chosen hex cannot make
+     * that assumption; a pale one needs dark text instead.
+     */
+    protected function pmTint($element, ?string $color, string $fallback = 'bg-graydark')
+    {
+        $color = $color ?: $fallback;
+        $textClass = str_starts_with($color, '#') ? $this->pmTextColorFor($color) : 'text-white';
+
+        return $this->pmBg($element, $color, $fallback)->class($textClass);
+    }
+
+    /** Black or white text, picked by the colour's relative luminance rather than assumed. */
+    protected function pmTextColorFor(string $hex): string
+    {
+        $hex = ltrim($hex, '#');
+
+        if (strlen($hex) === 3) {
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+
+        if (strlen($hex) !== 6 || !ctype_xdigit($hex)) {
+            return 'text-white';
+        }
+
+        [$r, $g, $b] = [hexdec(substr($hex, 0, 2)), hexdec(substr($hex, 2, 2)), hexdec(substr($hex, 4, 2))];
+        $luminance = (0.299 * $r + 0.587 * $g + 0.114 * $b) / 255;
+
+        return $luminance > 0.6 ? 'text-level1' : 'text-white';
+    }
+
+    /** A phase as a pill, or an em dash — the shape every phase-bearing list repeats. */
+    protected function pmPhase($phase)
+    {
+        if (!$phase) {
+            return _Html('—')->class('text-sm text-graydark');
+        }
+
+        return $this->pmTint(_Pill($phase->label()), $phase->displayColor());
+    }
+
+    /**
      * A status you can change from where you stand: the pill IS the control.
      *
      * It replaces ⋮ → "change status" → modal → select → save → refresh — five gestures for a
@@ -29,13 +87,14 @@ trait PmElements
         // The cast hands back a ListValueRef — label()/displayColor()/->value — not the
         // ListValue row itself; only the options below are real rows.
         $label = $status?->label() ?: __('projects.no-status');
-        $colour = $status?->displayColor() ?: 'bg-graydark';
         $current = $status?->value;
 
-        return _Dropdown($label)
-            // asPill() carries the app's pill geometry; only the colour and the fact that this
-            // one is a trigger are ours to add.
-            ->asPill($colour . ' text-white')
+        return $this->pmTint(
+            // asPill() carries the app's pill geometry; the colour is ours to add, via pmTint
+            // rather than asPill's own argument — a hex colour would not survive as a class.
+            _Dropdown($label)->asPill(),
+            $status?->displayColor()
+        )
             ->class('whitespace-nowrap cursor-pointer w-min inline-flex items-center gap-1')
             ->icon(_Sax('arrow-down-1', 12))
             ->submenu(
@@ -95,8 +154,9 @@ trait PmElements
             ->class($overdue ? 'text-sm font-semibold text-dangerdark' : 'text-sm text-graydark');
     }
 
-    /** The four ways of looking at the same work, in one fixed order. */
+    /** The five ways of looking at the same work, in one fixed order. */
     public const VIEW_TABS = 'tabs';
+    public const VIEW_PHASES = 'phases';
     public const VIEW_PIPELINE = 'pipeline';
     public const VIEW_BOARD = 'board';
     public const VIEW_GANTT = 'gantt';
@@ -141,6 +201,9 @@ trait PmElements
 
         $views = array_filter([
             !$projectId ? null : [self::VIEW_TABS, 'projects.board-tabs', 'pm.project-board', $params],
+            // Phases needs a project too: a phase is a per-team list, so an "all projects"
+            // column set would mix two teams' unrelated definitions of "phase #1".
+            !$projectId ? null : [self::VIEW_PHASES, 'projects.phases', 'pm.phases', $params],
             [self::VIEW_PIPELINE, 'projects.pipeline', 'pm.pipeline', $params],
             [self::VIEW_BOARD, 'projects.board', 'pm.board', $params],
             [self::VIEW_GANTT, 'projects.gantt', 'pm.gantt', $params],
@@ -304,7 +367,7 @@ trait PmElements
             ...collect($cases)->flatMap(function ($case, $i) use ($currentIdx, $id, $refreshId, $last) {
                 $done = $i < $currentIdx;
                 $isCurrent = $i === $currentIdx;
-                $hex = method_exists($case, 'hex') ? $case->hex() : '#006241';
+                $hex = $case->displayHex() ?: '#006241';
 
                 $bg = $isCurrent ? $hex : ($done ? '#009243' : '#EBEBEB');
                 $fg = ($isCurrent || $done) ? '#fff' : '#5F5F5F';
@@ -365,7 +428,7 @@ trait PmElements
         }
 
         return _Flex(
-            _Html('')->class(($priority->displayColor() ?: 'bg-graydark') . ' w-1 h-4 rounded-sm shrink-0'),
+            $this->pmBg(_Html(''), $priority->displayColor())->class('w-1 h-4 rounded-sm shrink-0'),
             _Html($priority->label())->class($textColour . ' text-sm font-semibold whitespace-nowrap'),
         )->class('items-center gap-2');
     }

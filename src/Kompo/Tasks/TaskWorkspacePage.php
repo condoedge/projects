@@ -162,6 +162,9 @@ class TaskWorkspacePage extends Form
                         ->options(TaskKindEnum::optionsWithLabels())),
                     $this->autoSel(_Select('projects.priority')->name('priority')
                         ->options(ListValue::optionsForProject(ListValue::PRIORITY, $task->project_id))),
+                    $this->autoSel(_Select('projects.phase')->name('phase')
+                        ->options(ListValue::optionsForProject(ListValue::PHASE, $task->project_id))
+                        ->placeholder('projects.no-phase')),
                     $this->autoSel(_Select('projects.assignee')->name('assignee_user_id')
                         ->searchOptions(2, 'searchUsers', 'retrieveUser')),
                     // "Sous-tâche de" — this task's parents, which is what drives the tree.
@@ -176,9 +179,9 @@ class TaskWorkspacePage extends Form
                         ? _Pill($task->status->label())->class($task->status->color() . ' text-white')
                         : null),
                     $this->detailRow('projects.priority', $task->priority
-                        ? _Pill($task->priority->label())
-                            ->class($task->priority->displayColor() . ' text-white')
+                        ? $this->pmTint(_Pill($task->priority->label()), $task->priority->displayColor())
                         : null),
+                    $this->detailRow('projects.phase', $this->pmPhase($task->phase)),
                     $this->detailRow('projects.assignee', $task->assignee?->name),
                     $this->detailRow('projects.dependencies', $task->dependencies->isEmpty()
                         ? null

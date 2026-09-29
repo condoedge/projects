@@ -67,9 +67,14 @@ class TaskForm extends Modal
                     ->default(TaskKindEnum::DELIVERABLE->value),
                 _Select('projects.status')->name('status')->options(TaskStatusEnum::optionsWithLabels())
                     ->default(TaskStatusEnum::PENDING->value),
+            ),
+            _Columns(
                 _Select('projects.priority')->name('priority')
                     ->options(ListValue::optionsForProject(ListValue::PRIORITY, $projectId))
                     ->default(PriorityEnum::MEDIUM->value),
+                _Select('projects.phase')->name('phase')
+                    ->options(ListValue::optionsForProject(ListValue::PHASE, $projectId))
+                    ->placeholder('projects.no-phase'),
             ),
             _Textarea('projects.description')->name('description')->rows(3),
             _Textarea('projects.acceptance-criteria')->name('acceptance_criteria_raw', false)

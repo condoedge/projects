@@ -93,7 +93,8 @@ class PipelinePage extends Form
             $this->pmHeader(
                 $project?->name ?: __('projects.all-projects'),
                 self::VIEW_PIPELINE,
-                $this->projectId
+                $this->projectId,
+                $project?->code
             ),
 
             _Flex(

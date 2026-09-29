@@ -3,6 +3,7 @@
 use Condoedge\Projects\Http\Controllers\TaskStatusController;
 use Condoedge\Projects\Kompo\Board\GanttPage;
 use Condoedge\Projects\Kompo\Board\KanbanPage;
+use Condoedge\Projects\Kompo\Board\PhaseBoardPage;
 use Condoedge\Projects\Kompo\FeatureRequests\FeatureWorkspacePage;
 use Condoedge\Projects\Kompo\Projects\ProjectBoardPage;
 use Condoedge\Projects\Kompo\PmRecordDrawer;
@@ -24,6 +25,7 @@ Route::layout('layouts.dashboard')->middleware(['superadmin'])->group(function (
     Route::get('admin/projects/suggestion/{id}', SuggestionWorkspacePage::class)->name('pm.suggestion');
     Route::get('admin/projects-kanban', KanbanPage::class)->name('pm.board');
     Route::get('admin/projects-gantt', GanttPage::class)->name('pm.gantt');
+    Route::get('admin/projects-phases', PhaseBoardPage::class)->name('pm.phases');
 });
 
 // The drawer's own route sits OUTSIDE the layout group on purpose: a drawer is filled with the

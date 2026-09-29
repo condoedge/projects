@@ -3,6 +3,7 @@
 namespace Condoedge\Projects\Kompo\Projects;
 
 use Condoedge\Projects\Kompo\Concerns\PmElements;
+use Condoedge\Projects\Kompo\Settings\TeamSettingsTab;
 use Condoedge\Utils\Kompo\Common\Form;
 
 class ProjectsPage extends Form
@@ -31,7 +32,14 @@ class ProjectsPage extends Form
                 // else, with nothing marked — none of these views is the list itself.
                 $this->pmViewSwitcher('list'),
             )->class('items-center gap-3 mb-4'),
-            _LazyComponent(fn () => new ProjectsTable()),
+
+            // Lazy, not eager, for the same reason ProjectBoardPage's tabs are: mounting the
+            // settings tab's six nested tables just to show the projects list would cost every
+            // visit here six extra queries nobody asked for.
+            _LazyTabs(
+                _LazyTab(fn () => new ProjectsTable())->label('projects.projects'),
+                _LazyTab(fn () => new TeamSettingsTab())->label('projects.team-settings'),
+            ),
         );
     }
 }
