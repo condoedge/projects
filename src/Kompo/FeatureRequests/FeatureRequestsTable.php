@@ -68,6 +68,7 @@ class FeatureRequestsTable extends WhiteTable
             _Th('projects.title'),
             _Th('projects.status')->class('w-44'),
             _Th('projects.priority')->class('w-32'),
+            _Th('projects.phase')->class('w-28'),
             _Th('projects.tasks')->class('w-28'),
             _Th()->class('w-12'),
         ];
@@ -97,6 +98,8 @@ class FeatureRequestsTable extends WhiteTable
             ),
 
             $this->pmPriority($fr->priority),
+
+            $this->pmPhase($fr->phase),
 
             $this->pmProgressOf($fr, __('projects.no-task-yet')),
 

@@ -29,6 +29,7 @@ class ProjectTask extends Model implements ScopedToTeam
         'status' => TaskStatusEnum::class,
         'kind' => TaskKindEnum::class,
         'priority' => ListValueCast::class . ":" . ListValue::PRIORITY,
+        'phase' => ListValueCast::class . ":" . ListValue::PHASE,
         'acceptance_criteria' => 'array',
         'start_date' => 'date',
         'due_date' => 'date',

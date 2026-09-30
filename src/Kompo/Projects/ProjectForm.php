@@ -2,8 +2,6 @@
 
 namespace Condoedge\Projects\Kompo\Projects;
 
-use Condoedge\Projects\Kompo\Settings\ProjectTeamsTable;
-use Condoedge\Projects\Kompo\Settings\ListValuesTable;
 use Condoedge\Projects\Models\Enums\PriorityEnum;
 use Condoedge\Projects\Models\Enums\ProjectStatusEnum;
 use Condoedge\Projects\Models\ListValue;
@@ -75,7 +73,10 @@ class ProjectForm extends Modal
         }
 
         return _Rows(
-            $nameInput,
+            _Columns(
+                $nameInput,
+                _Input('projects.project-code')->name('code'),
+            ),
             _Textarea('projects.description')->name('description'),
             _Columns(
                 _Select('projects.status')->name('status')->options(ProjectStatusEnum::optionsWithLabels())
@@ -94,56 +95,26 @@ class ProjectForm extends Modal
             ),
             $this->metadataCard(),
             $this->submitButton(),
-            $this->configurableLists(),
+            $this->teamSettingsHint(),
         );
     }
 
     /**
-     * The dropdowns the team can shape for itself. Team-scoped, not project-scoped: editing here
-     * changes every project of this team, which is what was asked for.
+     * Points at TeamSettingsTab (on the project list, ProjectsPage) instead of holding the
+     * configurable lists and working teams itself. Those are shaped by the whole SISC team, not
+     * by one project — editing "Priorités" from this project used to silently reshape every
+     * other project's dropdown too, since there never was a per-project list to begin with.
      */
-    protected function configurableLists()
+    protected function teamSettingsHint()
     {
         if (!$this->isPage || !$this->model->id) {
             return null;
         }
 
-        $teamId = (int) $this->model->team_id;
-
         return _Rows(
-            _Html('projects.configurable-lists')->class('font-semibold text-lg mt-8 mb-1'),
-            _Html('projects.configurable-lists-hint')->class('text-sm text-gray-500 mb-4'),
-
-            _Columns(
-                $this->listCard('projects.list-feature-request-type', ListValue::FEATURE_REQUEST_TYPE, $teamId),
-                $this->listCard('projects.list-priority', ListValue::PRIORITY, $teamId),
-            ),
-            _Columns(
-                $this->listCard('projects.list-feature-request-status', ListValue::FEATURE_REQUEST_STATUS, $teamId),
-                $this->listCard('projects.list-suggestion-status', ListValue::SUGGESTION_STATUS, $teamId),
-            ),
-            _Columns(
-                $this->listCard('projects.list-team-role', ListValue::TEAM_ROLE, $teamId),
-                _Html(''),
-            ),
-
-            _Html('projects.teams')->class('font-semibold text-lg mt-8 mb-1'),
-            _Html('projects.teams-hint')->class('text-sm text-gray-500 mb-4'),
-            _CardWhiteP4(
-                new ProjectTeamsTable(['team_id' => $teamId]),
-            )->class('border border-gray-200 mb-4'),
+            _Html('projects.team-settings-moved')->class('text-sm text-graydark mt-8'),
+            _Link('projects.projects')->href('pm.projects')->class('text-sm underline'),
         );
-    }
-
-    protected function listCard($title, string $listKey, int $teamId)
-    {
-        return _CardWhiteP4(
-            _Html($title)->class('font-semibold mb-3'),
-            new ListValuesTable([
-                'list_key' => $listKey,
-                'team_id' => $teamId,
-            ]),
-        )->class('border border-gray-200 mb-4');
     }
 
     // Closing and refreshing the projects table only makes sense from the modal: as a tab,

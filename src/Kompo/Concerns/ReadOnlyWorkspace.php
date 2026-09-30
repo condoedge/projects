@@ -32,10 +32,13 @@ trait ReadOnlyWorkspace
     protected function workspaceHeader(string $route, $id, string $backRoute, array $backParams, string $titleField = 'title')
     {
         return _Rows(
-            // !w-auto undoes the helper's own w-min, which otherwise breaks the label onto
-            // one word per line.
-            _BackButton($backRoute, $backParams, 'projects.back-to-project')
-                ->class('mb-4 !w-auto whitespace-nowrap'),
+            // A plain href, not _BackButton: that helper prefers window.history.back() whenever
+            // there is any same-origin history to pop, which is almost always — so "back" landed
+            // wherever the browser stack happened to point rather than on the project board. A
+            // fixed destination is what "back" is supposed to mean here.
+            _Link('projects.back-to-project')->icon('arrow-left')
+                ->href($backRoute, $backParams)
+                ->class('mb-4 !w-auto whitespace-nowrap text-graydark'),
 
             _FlexBetween(
                 $this->editing

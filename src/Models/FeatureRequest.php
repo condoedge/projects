@@ -34,6 +34,7 @@ class FeatureRequest extends Model implements ScopedToTeam
         'type' => ListValueCast::class . ":" . ListValue::FEATURE_REQUEST_TYPE,
         'status' => ListValueCast::class . ":" . ListValue::FEATURE_REQUEST_STATUS,
         'priority' => ListValueCast::class . ":" . ListValue::PRIORITY,
+        'phase' => ListValueCast::class . ":" . ListValue::PHASE,
         'complexity' => ComplexityEnum::class,
         'confidence' => ConfidenceEnum::class,
         'app_reference' => 'array',

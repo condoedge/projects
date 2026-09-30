@@ -34,7 +34,7 @@ class ProjectBoardPage extends Form
         $store = ['project_id' => $this->projectId];
 
         return _Rows(
-            $this->pmHeader($project->name, self::VIEW_TABS, $this->projectId),
+            $this->pmHeader($project->name, self::VIEW_TABS, $this->projectId, $project->code),
 
             // Lazy, not eager: _Tabs builds every tab on every render, so standing on Tâches was
             // also mounting the settings tab and its six nested tables. _LazyTabs loads only the

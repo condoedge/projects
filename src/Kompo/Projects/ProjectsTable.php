@@ -115,8 +115,12 @@ class ProjectsTable extends WhiteTable
     {
         return _TableRow(
             _Rows(
-                _Link($project->name)->class('font-medium text-level1')
-                    ->href('pm.project-board', ['project_id' => $project->id]),
+                _Flex(
+                    _Link($project->name)->class('font-medium text-level1')
+                        ->href('pm.project-board', ['project_id' => $project->id]),
+                    !$project->code ? null : _Html($project->code)
+                        ->class('text-xs text-graydark border border-level5 rounded px-1.5 py-0.5'),
+                )->class('gap-2 items-center'),
                 _Html($project->status?->label())->class('text-xs text-graydark mt-1'),
             ),
 
@@ -158,11 +162,14 @@ class ProjectsTable extends WhiteTable
             )->class('gap-2 items-center');
         }
 
+        // Solid colour, white text — the same pill every status/priority/phase in the module
+        // uses. This one used to be a pastel bg-xxxlight/text-xxxdark pair, the only badge drawn
+        // that way, which read as a different, lesser kind of warning next to the others.
         return _Flex(
             !$blocked ? null : _Pill(__('projects.n-blocked', ['n' => $blocked]))
-                ->class('bg-dangerlight text-dangerdark whitespace-nowrap'),
+                ->class('bg-danger text-white whitespace-nowrap'),
             !$late ? null : _Pill(__('projects.n-late', ['n' => $late]))
-                ->class('bg-warninglight text-warningdark whitespace-nowrap'),
+                ->class('bg-warning text-white whitespace-nowrap'),
         )->class('gap-2 items-center');
     }
 

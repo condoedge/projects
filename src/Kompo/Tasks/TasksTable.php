@@ -127,6 +127,7 @@ class TasksTable extends WhiteTable
             _Th('projects.task-kind')->class('w-24'),
             _Th('projects.status')->class('w-40'),
             _Th('projects.priority')->class('w-32'),
+            _Th('projects.phase')->class('w-28'),
             _Th('projects.assignee')->class('w-36'),
             _Th('projects.due-date')->class('w-32'),
             _Th()->class('w-12'),
@@ -147,6 +148,7 @@ class TasksTable extends WhiteTable
             $task->kind ? _Pill($task->kind->label())->class($task->kind->color().' text-white') : _Html('—'),
             $this->pmEnumStatusPill($task->status, $task->id, TaskStatusEnum::class, static::ID),
             $this->pmPriority($task->priority),
+            $this->pmPhase($task->phase),
             _Html($task->assignee?->name ?? '—'),
             $this->pmDueDate($task->due_date, $task->status === TaskStatusEnum::COMPLETED),
             _TripleDotsDropdown(

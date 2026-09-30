@@ -31,6 +31,9 @@ class ListValue extends Model implements ScopedToTeam
     public const SUGGESTION_STATUS = 'suggestion_status';
     public const PRIORITY = 'priority';
     public const TEAM_ROLE = 'team_role';
+    // No backing enum, like TEAM_ROLE: a team's phases are entirely its own, so nothing here is
+    // ever a "system" entry and nothing is seeded — the list simply starts empty.
+    public const PHASE = 'phase';
 
     /**
      * Which enum seeds each list, and supplies the fallback when a team has no rows yet.
@@ -58,6 +61,19 @@ class ListValue extends Model implements ScopedToTeam
     public function scopeForList($query, string $listKey)
     {
         return $query->where('list_key', $listKey);
+    }
+
+    /**
+     * Every entry sharing this row's team and list — what the drag-to-reorder form edits as one
+     * group. A self-join on team_id rather than a real parent-child key, so _MultiForm's own
+     * relation-save (which would set the "foreign key" — team_id here — to the anchor row's id)
+     * must never run against it: ListValueOrderForm bypasses that with a selfPost of its own.
+     */
+    public function siblings()
+    {
+        return $this->hasMany(static::class, 'team_id', 'team_id')
+            ->where('list_key', $this->list_key)
+            ->orderBy('position')->orderBy('value');
     }
 
     public function isSystem(): bool
@@ -107,6 +123,33 @@ class ListValue extends Model implements ScopedToTeam
         $case = $this->enumCase();
 
         return $case && method_exists($case, 'color') ? $case->color() : null;
+    }
+
+    /**
+     * Hex equivalents of the fixed Tailwind palette the colour wheel replaced — an enum's own
+     * colour is a Tailwind class, which nothing that paints inline (the colour picker, the
+     * stepper) can read directly.
+     */
+    public const TAILWIND_HEX = [
+        'bg-gray-400' => '#9CA3AF',
+        'bg-info' => '#002CDE',
+        'bg-warning' => '#FFB400',
+        'bg-positive' => '#009243',
+        'bg-danger' => '#FF4637',
+        'bg-level1' => '#006241',
+        'bg-graydark' => '#5F5F5F',
+    ];
+
+    /** displayColor(), resolved to an actual hex value regardless of how it is stored. */
+    public function displayHex(): ?string
+    {
+        $color = $this->displayColor();
+
+        if (!$color) {
+            return null;
+        }
+
+        return str_starts_with($color, '#') ? $color : (self::TAILWIND_HEX[$color] ?? null);
     }
 
     /**
@@ -223,14 +266,24 @@ class ListValue extends Model implements ScopedToTeam
         self::SUGGESTION_STATUS => ['DECLINED'],
     ];
 
-    /** Next stage of an ordered list, or null at the end. Replaces the hardcoded flow arrays. */
-    public static function next(string $listKey, int $teamId, $value): ?self
+    /**
+     * The ordered, "in flow" entries of an ordered list — what a stepper walks. A terminal
+     * side-branch like "Rejected" is picked outright, never stepped through, so it stays out of
+     * this even though forList() still returns it.
+     */
+    public static function pipeline(string $listKey, int $teamId): Collection
     {
         $skip = static::OUT_OF_FLOW[$listKey] ?? [];
 
-        $all = static::forList($listKey, $teamId)
+        return static::forList($listKey, $teamId)
             ->reject(fn (self $row) => in_array($row->system_key, $skip, true))
             ->values();
+    }
+
+    /** Next stage of an ordered list, or null at the end. Replaces the hardcoded flow arrays. */
+    public static function next(string $listKey, int $teamId, $value): ?self
+    {
+        $all = static::pipeline($listKey, $teamId);
 
         $i = $all->search(fn (self $row) => (int) $row->value === (int) $value);
 

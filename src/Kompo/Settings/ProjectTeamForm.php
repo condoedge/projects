@@ -61,7 +61,9 @@ class ProjectTeamForm extends Modal
             !$existing ? _Html('projects.team-members-after-save')->class('text-sm text-gray-500 mt-4')
                 : _Rows(
                     _Html('projects.team-members')->class('font-semibold mt-4 mb-2'),
-                    _MultiForm()->noLabel()->name('members')
+                    // Kompo's own default ("Add a new item") never goes through the translator,
+                    // so it stayed in English regardless of locale until overridden here.
+                    _MultiForm()->noLabel()->addLabel(__('projects.add-member'))->name('members')
                         ->formClass(ProjectTeamMemberForm::class, [
                             'pm_team_id' => $existing->id,
                             'team_id' => $this->teamId,

@@ -17,10 +17,12 @@ trait BoardHeader
     {
         $project = $projectId ? Project::asSystemOperation()->find($projectId) : null;
 
-        return $this->pmHeader(
-            $project?->name ?: __('projects.all-projects'),
-            $currentRoute === 'pm.gantt' ? static::VIEW_GANTT : static::VIEW_BOARD,
-            $project?->id
-        );
+        $view = match ($currentRoute) {
+            'pm.gantt' => static::VIEW_GANTT,
+            'pm.phases' => static::VIEW_PHASES,
+            default => static::VIEW_BOARD,
+        };
+
+        return $this->pmHeader($project?->name ?: __('projects.all-projects'), $view, $project?->id, $project?->code);
     }
 }

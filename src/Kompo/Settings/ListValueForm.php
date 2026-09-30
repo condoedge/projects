@@ -13,16 +13,6 @@ class ListValueForm extends Modal
     protected $listKey;
     protected $teamId;
 
-    /** The palette the enums already draw from — no new colours introduced here. */
-    protected const COLORS = [
-        'bg-gray-400' => 'projects.color-grey',
-        'bg-info' => 'projects.color-blue',
-        'bg-warning' => 'projects.color-orange',
-        'bg-positive' => 'projects.color-green',
-        'bg-danger' => 'projects.color-red',
-        'bg-level1' => 'projects.color-primary',
-    ];
-
     // The base Modal adds its own "Sauvegarder" in the header, on top of the save button
     // this form already puts at the bottom. Two buttons for one submission.
     protected $noHeaderButtons = true;
@@ -53,11 +43,17 @@ class ListValueForm extends Modal
 
         // Past the enum's own integers, so a team's entries can never collide with a system one.
         $this->model->value = ListValue::nextFreeValue($this->listKey, $this->teamId);
+
+        // New entries join an ordered list at the end rather than position 0 — one drag to move
+        // it into place, from there, instead of several to move it out of the front.
+        if (in_array($this->listKey, ListValue::ORDERED_LISTS, true)) {
+            $this->model->position = (int) ListValue::asSystemOperation()
+                ->where('team_id', $this->teamId)->forList($this->listKey)->max('position') + 1;
+        }
     }
 
     public function body()
     {
-        $isOrdered = in_array($this->listKey, ListValue::ORDERED_LISTS, true);
         $existing = ($this->model instanceof ListValue && $this->model->id) ? $this->model : null;
         $isSystem = (bool) $existing?->isSystem();
 
@@ -72,13 +68,10 @@ class ListValueForm extends Modal
                 ->comment($existing?->isSystem() ? 'projects.list-value-name-hint' : null)
                 ->onEnter(fn ($e) => $e->closeModal()->refresh('pm-list-values-' . $this->listKey)),
 
-            _Select('projects.list-value-color')->name('color')
-                ->options(collect(self::COLORS)->map(fn ($label) => __($label))),
+            _ColorPicker('projects.list-value-color')->name('color')
+                ->default($this->colorPickerDefault($existing)),
 
-            !$isOrdered ? null : _InputNumber('projects.list-value-position')->name('position')
-                ->min(0)->default($existing?->position ?? 0)
-                ->comment('projects.list-value-position-hint'),
-
+            // Order itself is set by dragging in ListValueOrderForm now, not by typing a number.
             _FlexEnd(
                 _SubmitButton('projects.save')->alert('projects.saved')->closeModal()
                     ->refresh('pm-list-values-' . $this->listKey),
@@ -94,5 +87,16 @@ class ListValueForm extends Modal
         return [
             'name' => ($isSystem ? 'nullable' : 'required') . '|max:255',
         ];
+    }
+
+    /**
+     * Whatever colour the wheel should open on. An entry already holding a hex value (saved
+     * through the wheel before) opens on it directly; one that only ever carried its enum's
+     * Tailwind class opens on that class's hex equivalent, so editing starts from the colour
+     * actually showing today rather than black. A brand new entry has nothing to show yet.
+     */
+    protected function colorPickerDefault(?ListValue $existing): ?string
+    {
+        return $existing?->displayHex();
     }
 }
