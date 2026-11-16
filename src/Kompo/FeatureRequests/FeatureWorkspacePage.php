@@ -132,10 +132,10 @@ class FeatureWorkspacePage extends Form
         return $this->infoBlock(
             'projects.problem',
             // No label on the field itself: the card's own heading already says it, and
-            // _Textarea($label) would print that same sentence again right below it.
+            // _CKEditor($label) would print that same sentence again right below it.
             $this->editing
-                ? $this->auto(_Textarea()->name('problem')->rows(4))
-                : $this->readText($fr->problem),
+                ? $this->autoEditor(_CKEditor()->name('problem'))
+                : $this->readRich($fr->problem),
         );
     }
 
@@ -144,8 +144,8 @@ class FeatureWorkspacePage extends Form
         return $this->infoBlock(
             'projects.proposed-solution',
             $this->editing
-                ? $this->auto(_Textarea()->name('proposed_solution')->rows(4))
-                : $this->readText($fr->proposed_solution),
+                ? $this->autoEditor(_CKEditor()->name('proposed_solution'))
+                : $this->readRich($fr->proposed_solution),
         );
     }
 
@@ -155,10 +155,10 @@ class FeatureWorkspacePage extends Form
             'projects.menu-design',
             $this->editing
                 ? _Rows(
-                    $this->auto(_Textarea()->name('menu_design')->rows(3)),
+                    $this->autoEditor(_CKEditor()->name('menu_design')),
                     _MultiFile('projects.attachments')->name('files'),
                 )
-                : $this->readText($fr->menu_design),
+                : $this->readRich($fr->menu_design),
         );
     }
 
@@ -219,17 +219,17 @@ class FeatureWorkspacePage extends Form
                         ->options(ListValue::optionsForProject(ListValue::PHASE, $fr->project_id))
                         ->placeholder('projects.no-phase')),
                 )
+                // Read mode still changes these in place: the pill IS the control, the same way
+                // the stage pill and every list already work, so none of the four needs edit mode.
                 : _Rows(
-                    $this->detailRow('projects.type', $fr->type
-                        ? $this->pmTint(_Pill($fr->type->label()), $fr->type->displayColor(), 'bg-gray-400')
-                        : null),
-                    $this->detailRow('projects.status', $fr->status
-                        ? $this->pmTint(_Pill($fr->status->label()), $fr->status->displayColor())
-                        : null),
-                    $this->detailRow('projects.priority', $fr->priority
-                        ? $this->pmTint(_Pill($fr->priority->label()), $fr->priority->displayColor())
-                        : null),
-                    $this->detailRow('projects.phase', $this->pmPhase($fr->phase)),
+                    $this->detailRow('projects.type',
+                        $this->pmTypePill($fr->type, $fr->id, $fr->team_id, self::ID)),
+                    $this->detailRow('projects.status',
+                        $this->pmStatusPill($fr->status, $fr->id, ListValue::FEATURE_REQUEST_STATUS, $fr->team_id, self::ID)),
+                    $this->detailRow('projects.priority',
+                        $this->pmPriorityPill($fr->priority, $fr->id, $fr->team_id, self::ID)),
+                    $this->detailRow('projects.phase',
+                        $this->pmPhasePill($fr->phase, $fr->id, $fr->team_id, self::ID)),
                 ),
         );
     }
