@@ -84,16 +84,71 @@ trait PmElements
      */
     protected function pmStatusPill($status, $id, string $listKey, $teamId, string $refreshId)
     {
+        return $this->pmEditableListPill(
+            $status, $id, $listKey, $teamId, $refreshId, 'setPmStatus', __('projects.no-status')
+        );
+    }
+
+    /**
+     * Priority as the same in-place pill the status wears.
+     *
+     * Priority is a ListValue just like status (a team may reshape its scale), so it changes the
+     * same way — one click on the pill, pick, done — rather than only through the record's form.
+     * The display-only pmPriority() stays for the drawer and record pages, where a suggestion's
+     * plain 0-3 integer has no team list to pick from. The component declares setPmPriority().
+     */
+    protected function pmPriorityPill($priority, $id, $teamId, string $refreshId)
+    {
+        return $this->pmEditableListPill(
+            $priority, $id, ListValue::PRIORITY, $teamId, $refreshId, 'setPmPriority', __('projects.no-priority')
+        );
+    }
+
+    /**
+     * Phase as the same in-place pill, for the lists that carry a project's own stages.
+     *
+     * A team with no phases yet gets an empty menu — nothing to pick until the Settings tab names
+     * the first one — which reads honestly rather than inventing choices. The component declares
+     * setPmPhase().
+     */
+    protected function pmPhasePill($phase, $id, $teamId, string $refreshId)
+    {
+        return $this->pmEditableListPill(
+            $phase, $id, ListValue::PHASE, $teamId, $refreshId, 'setPmPhase', __('projects.no-phase')
+        );
+    }
+
+    /**
+     * Type as the same in-place pill, for the record page where a feature's kind is set directly.
+     *
+     * The component declares setPmType().
+     */
+    protected function pmTypePill($type, $id, $teamId, string $refreshId)
+    {
+        return $this->pmEditableListPill(
+            $type, $id, ListValue::FEATURE_REQUEST_TYPE, $teamId, $refreshId, 'setPmType', __('projects.no-type')
+        );
+    }
+
+    /**
+     * The one in-place pill behind status, priority and phase: the pill IS the control.
+     *
+     * All three are ListValue columns (a team may reshape every list), so all three change the
+     * same way. $action names the handler the host component declares — setPmStatus, setPmPriority,
+     * setPmPhase — each a one-line write through ChangesPmStatus.
+     */
+    private function pmEditableListPill($current, $id, string $listKey, $teamId, string $refreshId, string $action, string $emptyLabel)
+    {
         // The cast hands back a ListValueRef — label()/displayColor()/->value — not the
         // ListValue row itself; only the options below are real rows.
-        $label = $status?->label() ?: __('projects.no-status');
-        $current = $status?->value;
+        $label = $current?->label() ?: $emptyLabel;
+        $currentValue = $current?->value;
 
         return $this->pmTint(
             // asPill() carries the app's pill geometry; the colour is ours to add, via pmTint
             // rather than asPill's own argument — a hex colour would not survive as a class.
             _Dropdown($label)->asPill(),
-            $status?->displayColor()
+            $current?->displayColor()
         )
             ->class('whitespace-nowrap cursor-pointer w-min inline-flex items-center gap-1')
             ->icon(_Sax('arrow-down-1', 12))
@@ -101,10 +156,10 @@ trait PmElements
                 ListValue::forList($listKey, (int) $teamId)->map(
                     fn ($option) => _DropdownLink($option->displayName())
                         ->when(
-                            $option->getAttributeValue('value') == $current,
+                            $option->getAttributeValue('value') == $currentValue,
                             fn ($el) => $el->icon(_Sax('tick-circle', 14))
                         )
-                        ->selfPost('setPmStatus', [
+                        ->selfPost($action, [
                             'id' => $id,
                             'value' => $option->getAttributeValue('value'),
                         ])

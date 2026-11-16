@@ -7,12 +7,14 @@ use Condoedge\Projects\Models\Enums\SuggestionStatusEnum;
 use Condoedge\Projects\Models\Suggestion;
 use Condoedge\Projects\Kompo\Concerns\ChangesPmStatus;
 use Condoedge\Projects\Kompo\Concerns\PmElements;
+use Condoedge\Projects\Kompo\Concerns\RemembersPmFilters;
 use Condoedge\Utils\Kompo\Common\WhiteTable;
 
 class SuggestionsTable extends WhiteTable
 {
     use ChangesPmStatus;
     use PmElements;
+    use RemembersPmFilters;
 
     public const ID = 'pm-suggestions-table';
     public $id = self::ID;
@@ -20,19 +22,37 @@ class SuggestionsTable extends WhiteTable
     /** The house way of saying a list is empty, and here, what to do about it. */
     public $noItemsFound = 'projects.empty-suggestions';
 
+    // Reserve height so the status filter's dropdown has room to open on an empty list — the tab
+    // panel clips with overflow:hidden, so a short table would cut the downward menu off.
+    public $itemsWrapperStyle = 'min-height: 360px';
+
     public function authorize()
     {
         return isSuperAdmin();
+    }
+
+    /** The filter fields whose value survives a round trip off the board. */
+    protected function filterKeys(): array
+    {
+        return ['search', 'search_status'];
     }
 
     public function top()
     {
         return _Rows(
             _Flex(
+                // Marks a filter browse apart from a boot, so a cleared filter can be told from a reload.
+                $this->pmFilterMarker(),
                 _Input('projects.search')->name('search', false)->class('flex-1 mb-0')
+                    ->default($this->rememberedFilter('search'))
                     ->placeholder('projects.search-suggestions')->debounce(300)->serverFilter(),
                 _Select('projects.status')->name('search_status', false)->class('w-48 mb-0')
-                    ->options(ListValue::optionsForProject(ListValue::SUGGESTION_STATUS, $this->prop("project_id")))
+                    ->default($this->rememberedFilter('search_status'))
+                    // An explicit empty entry, so a persisted status can be cleared back to all.
+                    ->options(
+                        collect(['' => __('projects.all-statuses')])
+                            ->union(ListValue::optionsForProject(ListValue::SUGGESTION_STATUS, $this->prop("project_id")))
+                    )
                     ->placeholder('projects.all-statuses')->serverFilter(),
                 _Button('projects.new-suggestion')->icon('plus')
                     ->selfGet('getSuggestionForm')->inModal(),
@@ -42,8 +62,8 @@ class SuggestionsTable extends WhiteTable
 
     public function query()
     {
-        $search = trim((string) request('search'));
-        $status = request('search_status');
+        $search = trim((string) $this->rememberedFilter('search', ''));
+        $status = $this->rememberedFilter('search_status');
 
         $hasStatusFilter = $status !== null && $status !== '';
 
@@ -104,7 +124,7 @@ class SuggestionsTable extends WhiteTable
                     ->selfPost('deleteSuggestion', ['id' => $suggestion->id])
                     ->refresh(static::ID)->closeConfirmationModalOnClick(),
             ),
-        )->get('pm.record-drawer', ['kind' => 'suggestion', 'id' => $suggestion->id])->inDrawer();
+        )->href('pm.suggestion', ['id' => $suggestion->id])->inNewTab();
     }
 
 

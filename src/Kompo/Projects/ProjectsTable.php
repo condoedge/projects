@@ -144,7 +144,10 @@ class ProjectsTable extends WhiteTable
                     ->selfPost('deleteProject', ['id' => $project->id])
                     ->refresh(self::ID)->closeConfirmationModalOnClick(),
             ),
-        );
+        // The whole row opens the board, not just the name link — a click anywhere on the line
+        // used to do nothing. Nested links (name, triage count, the dropdown) keep their own
+        // targets: being links, they swallow the click before it reaches the row.
+        )->href('pm.project-board', ['project_id' => $project->id]);
     }
 
     /** Silent when nothing is wrong — an empty cell is the good news. */

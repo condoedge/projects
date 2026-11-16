@@ -21,6 +21,11 @@ class TasksTable extends WhiteTable
     /** The house way of saying a list is empty, and here, what to do about it. */
     public $noItemsFound = 'projects.empty-tasks';
 
+    // Reserve height so the quick-add kind select (and the status/priority/phase pills) have room
+    // to open on an empty list — the tab panel clips with overflow:hidden, so a short table would
+    // cut a downward menu off.
+    public $itemsWrapperStyle = 'min-height: 360px';
+
     public function authorize()
     {
         return isSuperAdmin();
@@ -147,8 +152,8 @@ class TasksTable extends WhiteTable
             )->class('gap-2 items-center'),
             $task->kind ? _Pill($task->kind->label())->class($task->kind->color().' text-white') : _Html('—'),
             $this->pmEnumStatusPill($task->status, $task->id, TaskStatusEnum::class, static::ID),
-            $this->pmPriority($task->priority),
-            $this->pmPhase($task->phase),
+            $this->pmPriorityPill($task->priority, $task->id, $task->team_id, static::ID),
+            $this->pmPhasePill($task->phase, $task->id, $task->team_id, static::ID),
             _Html($task->assignee?->name ?? '—'),
             $this->pmDueDate($task->due_date, $task->status === TaskStatusEnum::COMPLETED),
             _TripleDotsDropdown(
@@ -165,7 +170,7 @@ class TasksTable extends WhiteTable
                     ->selfPost('deleteTask', ['id' => $task->id])
                     ->refresh(static::ID)->closeConfirmationModalOnClick(),
             ),
-        )->get('pm.record-drawer', ['kind' => 'task', 'id' => $task->id])->inDrawer();
+        )->href('pm.task', ['id' => $task->id])->inNewTab();
     }
 
 

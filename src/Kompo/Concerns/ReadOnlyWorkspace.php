@@ -109,6 +109,37 @@ trait ReadOnlyWorkspace
     }
 
     /**
+     * A rich-text field, read-side.
+     *
+     * The CKEditor fields store HTML now, not Markdown — so this renders the HTML as-is, under the
+     * same .pm-md typography the Markdown fields use, keeping the two kinds of block visually one.
+     * Content that still looks like Markdown (everything written before the editor landed) has no
+     * tags, so it is run through the Markdown parser instead rather than shown with its dashes
+     * bare — the one bridge that lets old and new records read the same.
+     */
+    protected function readRich($value)
+    {
+        $value = (string) $value;
+
+        if (trim($value) === '') {
+            return _Html('—')->class('text-gray-400');
+        }
+
+        // A tag anywhere means CKEditor wrote it; no tag means legacy Markdown.
+        $html = preg_match('/<[a-z!\/][^>]*>/i', $value)
+            ? $value
+            : \Illuminate\Support\Str::markdown($value, ['allow_unsafe_links' => false]);
+
+        return _Html('<div class="pm-md">' . $html . '</div>');
+    }
+
+    /** Autosave for an editor: it commits on change (CKEditor debounces), not on blur. */
+    protected function autoEditor($el)
+    {
+        return $el->onChange(fn ($e) => $e->submit());
+    }
+
+    /**
      * Acceptance criteria as a tickable list. Each box posts its own index rather than the whole
      * list, so two people ticking different lines cannot overwrite one another.
      */

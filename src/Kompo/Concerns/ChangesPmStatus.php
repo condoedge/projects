@@ -36,4 +36,37 @@ trait ChangesPmStatus
         $model->status = $value;
         $model->save();
     }
+
+    /**
+     * The same one-line write behind the priority and phase pills.
+     *
+     * Both are plain ListValue columns — no completion-percentage rule rides along as it does for
+     * status — so a single setter handles either, told apart by the column it writes.
+     */
+    public function setPmPriority($id, $value = null)
+    {
+        $this->writePmListColumn($id, 'priority', request('value') ?? $value);
+    }
+
+    public function setPmPhase($id, $value = null)
+    {
+        $this->writePmListColumn($id, 'phase', request('value') ?? $value);
+    }
+
+    public function setPmType($id, $value = null)
+    {
+        $this->writePmListColumn($id, 'type', request('value') ?? $value);
+    }
+
+    protected function writePmListColumn($id, string $column, $value): void
+    {
+        $model = $this->pmStatusModel($id);
+
+        if (!$model) {
+            return;
+        }
+
+        $model->{$column} = ($value === null || $value === '') ? null : (int) $value;
+        $model->save();
+    }
 }
